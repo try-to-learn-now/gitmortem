@@ -1,4 +1,4 @@
-// File: functions/api/get-file.js
+// File: functions/api/get-code.js
 
 export async function onRequest(context) {
     const { env } = context;
@@ -9,7 +9,7 @@ export async function onRequest(context) {
     const path = url.searchParams.get("path");
 
     if (!owner || !repo || !path) {
-        return new Response("Missing params", { status: 400 });
+        return new Response("Missing owner/repo/path", { status: 400 });
     }
 
     const cleanOwner = owner.toUpperCase().replace(/-/g, "_");
@@ -17,14 +17,11 @@ export async function onRequest(context) {
 
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
-    console.log("📄 File Fetch:", apiUrl);
-
     const res = await fetch(apiUrl, {
         headers: {
             "Authorization": `Bearer ${token}`,
-            "Accept": "application/vnd.github.v3.raw",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "GitMortem-Explorer"
+            "User-Agent": "GitMortem-Explorer",
+            "Accept": "application/vnd.github.v3.raw"
         }
     });
 
@@ -33,9 +30,12 @@ export async function onRequest(context) {
         return new Response(`GitHub Error: ${err}`, { status: res.status });
     }
 
-    return new Response(res.body, {
+    // Convert ALWAYS to raw text
+    const text = await res.text();
+
+    return new Response(text, {
         headers: {
-            "Content-Type": res.headers.get("Content-Type") || "text/plain",
+            "Content-Type": "text/plain; charset=utf-8",
             "Access-Control-Allow-Origin": "*"
         }
     });
