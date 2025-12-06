@@ -2,200 +2,214 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=1024">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GitMortem Explorer</title>
 <style>
-    :root { color-scheme: dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background:#0d1117;
+    color:#c9d1d9;
+    padding:16px;
+  }
 
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        background:#0d1117;
-        color:#c9d1d9;
-        padding:20px;
-        margin:0;
-    }
-    h2 { margin-top:0; }
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+  }
 
-    input, button {
-        padding: 10px;
-        border-radius: 6px;
-        font-size:14px;
-    }
+  h2 {
+    margin-bottom: 4px;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color:#8b949e;
+  }
+
+  input {
+    width: 70%;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border:1px solid #30363d;
+    background:#161b22;
+    color:#fff;
+    font-size: 14px;
+  }
+  button {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border:none;
+    cursor:pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  #load-btn {
+    background:#238636;
+    color:#fff;
+    margin-left:6px;
+  }
+  #load-btn:hover {
+    background:#2ea44f;
+  }
+
+  .card {
+    background:#0d1117;
+    border:1px solid #30363d;
+    border-radius: 10px;
+    padding:10px 12px;
+    margin-top:12px;
+  }
+
+  .card-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+    font-size:13px;
+  }
+
+  .card-title {
+    font-weight:600;
+  }
+
+  .card-actions {
+    display:flex;
+    gap:6px;
+  }
+
+  .icon-btn {
+    background:#161b22;
+    border:1px solid #30363d;
+    border-radius:6px;
+    padding:3px 7px;
+    font-size:13px;
+    line-height:1;
+  }
+  .icon-btn:hover {
+    background:#21262d;
+  }
+
+  .icon-btn.merge {
+    border-color:#ff7675;
+    color:#ff7675;
+  }
+
+  #status {
+    font-size:12px;
+    color:#8b949e;
+    margin-top:4px;
+  }
+
+  .panel-container {
+    max-width: 100%;
+  }
+
+  #tree {
+    max-height: 420px;
+    overflow:auto;
+  }
+
+  .folder-panel {
+    margin-bottom:10px;
+    padding:8px 10px;
+    background:#161b22;
+    border-radius: 8px;
+    border:1px solid #30363d;
+  }
+
+  .folder-panel-title {
+    font-size:13px;
+    margin-bottom:4px;
+  }
+
+  .folder-panel pre {
+    margin:0;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size:12px;
+    line-height:1.3;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .file-link {
+    color:#58a6ff;
+    cursor:pointer;
+  }
+  .file-link:hover {
+    text-decoration:underline;
+  }
+
+  #preview-box {
+    min-height: 120px;
+    background:#161b22;
+    border-radius:8px;
+    border:1px solid #30363d;
+    padding:8px 10px;
+    font-size:12px;
+    overflow:auto;
+    max-height: 420px;
+  }
+
+  #preview-box pre {
+    margin:0;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+
+  @media (max-width: 540px) {
     input {
-        width: 60%;
-        border:1px solid #30363d;
-        background:#161b22;
-        color:#fff;
+      width:100%;
+      margin-bottom:8px;
     }
-    button {
-        background:#238636;
-        border:none;
-        color:white;
-        cursor:pointer;
-        font-weight:bold;
-        margin-left:8px;
+    #load-btn {
+      margin-left:0;
+      width:100%;
+      margin-top:4px;
     }
-    button:hover { background:#2ea44f; }
-
-    #status {
-        margin-top:8px;
-        font-size:13px;
-        color:#8b949e;
-    }
-
-    /* Up–down layout */
-    .panes {
-        display:flex;
-        flex-direction:column;
-        gap:16px;
-        margin-top:20px;
-    }
-    .pane {
-        background:#161b22;
-        border-radius:8px;
-        padding:10px;
-        border:1px solid #30363d;
-        min-height:140px;
-        box-sizing:border-box;
-        overflow:auto;
-    }
-
-    .pane-header {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        margin-bottom:8px;
-    }
-    .pane-title {
-        font-size:14px;
-        margin:0;
-        color:#e6edf3;
-    }
-
-    .copy-icon-btn {
-        border:none;
-        background:transparent;
-        cursor:pointer;
-        font-size:16px;
-        padding:4px 6px;
-        color:#8b949e;
-        border-radius:999px;
-    }
-    .copy-icon-btn:hover {
-        background:#21262d;
-        color:#c9d1d9;
-    }
-
-    .copied-toast {
-        font-size:11px;
-        margin-left:8px;
-        color:#3fb950;
-    }
-
-    /* AI Tree panel */
-    #tree {
-        font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
-        font-size:13px;
-    }
-
-    /* Folder panels INSIDE AI tree */
-    .folder-panel {
-        border: 1px solid #30363d;
-        border-radius: 6px;
-        padding: 6px 8px;
-        margin-bottom: 10px;
-        background: #0d1117;
-    }
-    .folder-panel-header {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        margin-bottom:4px;
-    }
-    .folder-panel-title {
-        font-weight: 600;
-        font-size: 13px;
-        color:#e6edf3;
-    }
-    .folder-panel-copy-btn {
-        border:none;
-        background:transparent;
-        cursor:pointer;
-        font-size:14px;
-        padding:2px 4px;
-        color:#8b949e;
-        border-radius:999px;
-    }
-    .folder-panel-copy-btn:hover {
-        background:#21262d;
-        color:#c9d1d9;
-    }
-    .folder-panel pre {
-        margin: 0;
-        white-space: pre;
-        font-family: inherit;
-        font-size: inherit;
-    }
-
-    .file-link {
-        cursor:pointer;
-        color:#a5d6ff;
-        text-decoration:underline;
-    }
-
-    /* Preview box */
-    #preview-box {
-        font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
-        font-size:13px;
-        white-space: pre-wrap;
-    }
-    #preview-box pre {
-        margin:0;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
+  }
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
 </head>
 
 <body>
-    <h2>🚀 GitMortem Explorer</h2>
-    <p>Upper panel = AI ke liye folder-wise tree with links, Neeche = file preview.</p>
+<div class="container">
+  <h2>🚀 GitMortem Explorer</h2>
+  <p>Upper panel = AI ke liye folder-wise tree with links, Neeche = file / folder code preview.</p>
 
-    <div>
-        <input type="text" id="repo-url" placeholder="https://github.com/temproj/Attendence-Backend">
-        <button id="load-btn">Generate Tree</button>
+  <div>
+    <input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread">
+    <button id="load-btn">Generate Tree</button>
+  </div>
+  <div id="status">Waiting…</div>
+
+  <!-- Tree Card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📂 Repo Tree (Copy for AI)</span>
+      <div class="card-actions">
+        <button class="icon-btn" id="copy-tree-btn" title="Copy whole tree for AI">📋</button>
+      </div>
     </div>
-    <div id="status">Waiting…</div>
-
-    <div class="panes">
-        <!-- TOP: AI copy panel -->
-        <div class="pane">
-            <div class="pane-header">
-                <h3 class="pane-title">📁 Repo Tree (Copy for AI)</h3>
-                <div>
-                    <button class="copy-icon-btn" data-target="tree" title="Copy full AI tree">📋</button>
-                    <span class="copied-toast" id="tree-copied"></span>
-                </div>
-            </div>
-            <div id="tree"></div>
-        </div>
-
-        <!-- BOTTOM: preview panel -->
-        <div class="pane">
-            <div class="pane-header">
-                <h3 class="pane-title">📄 File Preview</h3>
-                <div>
-                    <button class="copy-icon-btn" data-target="preview-box" title="Copy preview code">📋</button>
-                    <span class="copied-toast" id="preview-copied"></span>
-                </div>
-            </div>
-            <div id="preview-box">Select a file from tree above…</div>
-        </div>
+    <div class="panel-container">
+      <div id="tree"></div>
     </div>
+  </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-    <script src="app.js"></script>
+  <!-- Preview Card -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📄 File / Folder Preview</span>
+      <div class="card-actions">
+        <button class="icon-btn" id="copy-preview-btn" title="Copy preview text">📋</button>
+      </div>
+    </div>
+    <div id="preview-box">Select a file from tree above…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
