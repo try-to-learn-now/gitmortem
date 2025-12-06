@@ -1,6 +1,6 @@
 document.getElementById("load-btn").addEventListener("click", async () => {
-    const url = document.getElementById("repo-url").value.trim();
-    if (!url) return alert("Enter GitHub Repo URL!");
+    const input = document.getElementById("repo-url").value.trim();
+    if (!input) return alert("Enter GitHub Repo URL!");
 
     const status = document.getElementById("status");
     const treeBox = document.getElementById("tree");
@@ -8,46 +8,51 @@ document.getElementById("load-btn").addEventListener("click", async () => {
 
     previewBox.textContent = "Select a file...";
     treeBox.textContent = "";
-    status.textContent = "⏳ Fetching Repo Structure...";
+    status.textContent = "⏳ Fetching tree...";
 
     try {
-        const urlObj = new URL(url);
-        const [ , owner, repo ] = urlObj.pathname.split("/");
+        const url = new URL(input);
+        const [ , owner, repo ] = url.pathname.split("/");
 
-        const response = await fetch(`/api/explore?owner=${owner}&repo=${repo}`);
-        const text = await response.text();
+        const res = await fetch(`/api/explore?owner=${owner}&repo=${repo}`);
+        const text = await res.text();
 
         if (text.startsWith("Error:")) throw new Error(text);
 
         status.textContent = "✔️ Done!";
         treeBox.innerHTML = text;
-    } catch (e) {
+    } catch (err) {
         status.textContent = "❌ Failed";
-        treeBox.textContent = e.message;
+        treeBox.textContent = err.message;
     }
-
-    document.querySelectorAll(".file-link").forEach(a =>
-        a.addEventListener("click", async () => {
-            const fileUrl = a.dataset.url;
-            previewBox.textContent = "⏳ Loading...";
-
-            const res = await fetch(fileUrl);
-            const blob = await res.blob();
-
-            if (blob.size > 5 * 1024 * 1024) {
-                previewBox.textContent = "❌ File too large (Max 5MB preview)";
-                return;
-            }
-
-            const text = await blob.text();
-            previewBox.innerHTML = `<pre><code>${escapeHtml(text)}</code></pre>`;
-            hljs.highlightAll();
-        })
-    );
 });
 
-function escapeHtml(unsafe) {
-    return unsafe.replace(/[&<>"']/g, m =>
-        ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m])
+// 🔥 Event Delegation (Handles dynamic elements also!)
+document.getElementById("tree").addEventListener("click", async (e) => {
+    if (!e.target.classList.contains("file-link")) return;
+
+    const previewBox = document.getElementById("preview-box");
+
+    const fileUrl = e.target.dataset.url;
+    if (!fileUrl) return;
+
+    previewBox.textContent = "⏳ Loading...";
+
+    const res = await fetch(fileUrl);
+    const blob = await res.blob();
+
+    if (blob.size > 5 * 1024 * 1024) {
+        previewBox.textContent = "❌ File too large to preview (max 5MB)";
+        return;
+    }
+
+    const text = await blob.text();
+    previewBox.innerHTML = `<pre><code>${escapeHtml(text)}</code></pre>`;
+    hljs.highlightAll();
+});
+
+function escapeHtml(txt) {
+    return txt.replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[c])
     );
 }
