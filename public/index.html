@@ -43,7 +43,7 @@
         color:#8b949e;
     }
 
-    /* Up–down panels */
+    /* Up–down layout */
     .panes {
         display:flex;
         flex-direction:column;
@@ -86,17 +86,64 @@
         color:#c9d1d9;
     }
 
+    .copied-toast {
+        font-size:11px;
+        margin-left:8px;
+        color:#3fb950;
+    }
+
+    /* AI Tree panel */
     #tree {
-        white-space: pre;
         font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
         font-size:13px;
     }
+
+    /* Folder panels INSIDE AI tree */
+    .folder-panel {
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 10px;
+        background: #0d1117;
+    }
+    .folder-panel-header {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin-bottom:4px;
+    }
+    .folder-panel-title {
+        font-weight: 600;
+        font-size: 13px;
+        color:#e6edf3;
+    }
+    .folder-panel-copy-btn {
+        border:none;
+        background:transparent;
+        cursor:pointer;
+        font-size:14px;
+        padding:2px 4px;
+        color:#8b949e;
+        border-radius:999px;
+    }
+    .folder-panel-copy-btn:hover {
+        background:#21262d;
+        color:#c9d1d9;
+    }
+    .folder-panel pre {
+        margin: 0;
+        white-space: pre;
+        font-family: inherit;
+        font-size: inherit;
+    }
+
     .file-link {
         cursor:pointer;
         color:#a5d6ff;
         text-decoration:underline;
     }
 
+    /* Preview box */
     #preview-box {
         font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
         font-size:13px;
@@ -107,12 +154,6 @@
         white-space: pre-wrap;
         word-break: break-word;
     }
-
-    .copied-toast {
-        font-size:11px;
-        margin-left:8px;
-        color:#3fb950;
-    }
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
@@ -120,7 +161,7 @@
 
 <body>
     <h2>🚀 GitMortem Explorer</h2>
-    <p>Browse any GitHub repo — Public or Private 🔐 (Upper panel = copy for AI, lower panel = preview only)</p>
+    <p>Upper panel = AI ke liye folder-wise tree with links, Neeche = file preview.</p>
 
     <div>
         <input type="text" id="repo-url" placeholder="https://github.com/temproj/Attendence-Backend">
@@ -134,7 +175,7 @@
             <div class="pane-header">
                 <h3 class="pane-title">📁 Repo Tree (Copy for AI)</h3>
                 <div>
-                    <button class="copy-icon-btn" data-target="tree" title="Copy tree for AI">📋</button>
+                    <button class="copy-icon-btn" data-target="tree" title="Copy full AI tree">📋</button>
                     <span class="copied-toast" id="tree-copied"></span>
                 </div>
             </div>
