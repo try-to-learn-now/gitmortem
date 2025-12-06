@@ -16,14 +16,14 @@ export async function onRequest(context) {
     const envVar = `TOKEN_${cleanOwner}`;
     const token = env[envVar] || env.TOKEN_DEFAULT;
 
-    console.log("========== GITMORTEM DEBUG ==========");
+    console.log("========== GITMORTEM ==========");
     console.log("Owner:", owner);
     console.log("Repo:", repo);
     console.log("Token Found:", token ? "YES" : "NO");
     console.log("Env Var Used:", envVar);
 
     try {
-        // STEP-1 → Repo Info Check
+        // STEP-1 → Repo Info
         const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
         console.log("RepoInfo API:", repoInfoUrl);
 
@@ -50,7 +50,7 @@ export async function onRequest(context) {
         const branch = repoInfo.default_branch || "main";
         console.log("Default Branch:", branch);
 
-        // STEP-2 → Tree fetch
+        // STEP-2 → Tree fetch (recursive)
         const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
         console.log("Tree API:", treeUrl);
 
@@ -65,7 +65,11 @@ export async function onRequest(context) {
 
         console.log("Tree Status:", treeRes.status);
         const treeJson = await treeRes.json();
-        console.log("Tree JSON:", treeJson);
+        console.log("Tree JSON (truncated view):", {
+            sha: treeJson.sha,
+            truncated: treeJson.truncated,
+            count: treeJson.tree ? treeJson.tree.length : 0
+        });
 
         if (!treeRes.ok) {
             return new Response(
@@ -74,19 +78,74 @@ export async function onRequest(context) {
             );
         }
 
-        let html = `${repo}/\n`;
+        // ---- Build nested tree structure ----
+        const root = {};
 
-        treeJson.tree.forEach(item => {
-            if (item.type === "tree") {
-                html += `📁 ${item.path}\n`;
-            } else {
-                const fileUrl =
-                    `${url.origin}/api/get-file?owner=${owner}&repo=${repo}&path=${encodeURIComponent(item.path)}`;
-                html += `📄 <span class="file-link" data-url="${fileUrl}">${item.path}</span>\n`;
-            }
+        // root is object: { name: { __children, __isFile, path } }
+        (treeJson.tree || []).forEach(item => {
+            const parts = item.path.split("/");
+            let node = root;
+
+            parts.forEach((part, idx) => {
+                if (!node[part]) {
+                    node[part] = {
+                        __children: {},
+                        __isFile: false,
+                        path: null
+                    };
+                }
+                const isLast = idx === parts.length - 1;
+
+                if (isLast && item.type === "blob") {
+                    node[part].__isFile = true;
+                    node[part].path = item.path;
+                }
+
+                node = node[part].__children;
+            });
         });
 
-        console.log("========== END DEBUG ==========");
+        // ---- Helper to render ASCII tree with links ----
+        const buildTree = (node, prefix = "") => {
+            let result = "";
+            const names = Object.keys(node);
+
+            // Folders first, then files, alphabetical
+            names.sort((a, b) => {
+                const aIsFile = node[a].__isFile;
+                const bIsFile = node[b].__isFile;
+                if (aIsFile !== bIsFile) return aIsFile - bIsFile; // false (folder) first
+                return a.localeCompare(b);
+            });
+
+            names.forEach((name, index) => {
+                const entry = node[name];
+                const isLast = index === names.length - 1;
+                const connector = isLast ? "└──" : "├──";
+                const childPrefix = prefix + (isLast ? "    " : "│   ");
+
+                if (entry.__isFile) {
+                    const fullUrl = `${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(entry.path)}`;
+
+                    // File line (clickable name for preview)
+                    result += `${prefix}${connector} 📄 <span class="file-link" data-url="${fullUrl}" data-filename="${name}">${name}</span>\n`;
+
+                    // Link line (for AI / copy)
+                    result += `${childPrefix}└─ 🔗 ${fullUrl}\n`;
+                } else {
+                    // Folder line
+                    result += `${prefix}${connector} 📁 ${name}/\n`;
+                    result += buildTree(entry.__children, childPrefix);
+                }
+            });
+
+            return result;
+        };
+
+        let html = `${repo}/\n`;
+        html += buildTree(root, "");
+
+        console.log("========== END GITMORTEM ==========");
 
         return new Response(html, {
             headers: {
