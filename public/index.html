@@ -2,37 +2,124 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=1024">
 <title>GitMortem Explorer</title>
 <style>
-    body { font-family: Arial, sans-serif; background:#0d1117; color:#c9d1d9; padding:20px; }
-    input, button { padding: 10px; border-radius: 6px; }
-    input { width: 70%; border:1px solid #30363d; background:#161b22; color:#fff; }
-    button { background:#238636; border:none; color:white; cursor:pointer; font-weight:bold; }
+    :root {
+        color-scheme: dark;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+        background:#0d1117;
+        color:#c9d1d9;
+        padding:20px;
+        margin:0;
+    }
+    h2 {
+        margin-top:0;
+    }
+    input, button {
+        padding: 10px;
+        border-radius: 6px;
+        font-size:14px;
+    }
+    input {
+        width: 60%;
+        border:1px solid #30363d;
+        background:#161b22;
+        color:#fff;
+    }
+    button {
+        background:#238636;
+        border:none;
+        color:white;
+        cursor:pointer;
+        font-weight:bold;
+        margin-left:8px;
+    }
     button:hover { background:#2ea44f; }
-    #tree { white-space: pre-wrap; font-family: monospace; margin-top:20px; padding:10px; background:#161b22; border-radius:6px; }
-    .folder { cursor:pointer; color:#58a6ff; }
-    .file-link { cursor:pointer; color:#a5d6ff; }
-    .hidden { display:none; }
-    #preview-box { margin-top:20px; padding:10px; background:#161b22; border-radius:6px; }
-    pre { white-space: pre-wrap; }
+
+    #status {
+        margin-top:8px;
+        font-size:13px;
+        color:#8b949e;
+    }
+
+    /* 2-panel layout */
+    .panes {
+        display:flex;
+        gap:16px;
+        margin-top:20px;
+    }
+    .pane {
+        flex:1;
+        background:#161b22;
+        border-radius:8px;
+        padding:10px;
+        border:1px solid #30363d;
+        min-height:300px;
+        box-sizing:border-box;
+        overflow:auto;
+    }
+    .pane h3 {
+        margin-top:0;
+        margin-bottom:8px;
+        font-size:14px;
+        color:#e6edf3;
+    }
+
+    /* Left tree (copy area) */
+    #tree {
+        white-space: pre;
+        font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size:13px;
+    }
+    .file-link {
+        cursor:pointer;
+        color:#a5d6ff;
+        text-decoration:underline;
+    }
+
+    /* Right preview */
+    #preview-box {
+        font-family: SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        font-size:13px;
+        white-space: pre-wrap;
+    }
+    #preview-box pre {
+        margin:0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
 </style>
+
+<!-- highlight.js theme -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
 </head>
 
 <body>
-<h2>🚀 GitMortem Explorer</h2>
-<p>Browse any GitHub repo — Public or Private 🔐</p>
+    <h2>🚀 GitMortem Explorer</h2>
+    <p>Browse any GitHub repo — Public or Private 🔐 (Output left = copy for AI, Right = preview only)</p>
 
-<input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread">
-<button id="load-btn">Generate Tree</button>
+    <div>
+        <input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread">
+        <button id="load-btn">Generate Tree</button>
+    </div>
+    <div id="status">Waiting…</div>
 
-<div id="status">Waiting…</div>
-<div id="tree"></div>
+    <div class="panes">
+        <div class="pane">
+            <h3>📁 Repo Tree (Copy for AI)</h3>
+            <div id="tree"></div>
+        </div>
+        <div class="pane">
+            <h3>📄 File Preview (Not included when you copy left side)</h3>
+            <div id="preview-box">Select a file from left…</div>
+        </div>
+    </div>
 
-<h3>📄 File Preview:</h3>
-<div id="preview-box">Select a file...</div>
-
-<script src="app.js"></script>
+    <!-- highlight.js script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
