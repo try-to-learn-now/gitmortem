@@ -114,7 +114,8 @@ export async function onRequest(context) {
                     const fullUrl =
                         `${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(entry.path)}`;
 
-                    out += `${connector} 📄 <span class="file-link" data-url="${fullUrl}" data-filename="${name}">${name}</span>\n`;
+                    // 👇 yahan extra data-path add kiya
+                    out += `${connector} 📄 <span class="file-link" data-url="${fullUrl}" data-filename="${name}" data-path="${entry.path}">${name}</span>\n`;
                     out += `    └─ 🔗 ${fullUrl}\n`;
                 } else {
                     // just show folder name, no recursion inside this panel
@@ -179,4 +180,4 @@ export async function onRequest(context) {
         console.log("CRASH:", e);
         return new Response(`Server Crash: ${e.message}`, { status: 500 });
     }
-                    }
+}
