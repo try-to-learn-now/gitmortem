@@ -1,74 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=1024">
-    <title>Universal GitHub Explorer</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #0d1117; color: #c9d1d9; }
-        .container { max-width: 900px; margin: 0 auto; }
-        h2 { border-bottom: 1px solid #30363d; padding-bottom: 10px; }
-        input { width: 70%; padding: 12px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; font-size: 16px; margin-bottom: 10px; }
-        button { padding: 12px 24px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        button:hover { background: #2ea44f; }
-        pre { background: #161b22; padding: 15px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #30363d; font-family: "SFMono-Regular", Consolas, monospace; font-size: 14px; }
-        .link { color: #58a6ff; text-decoration: none; }
-        .link:hover { text-decoration: underline; }
-        .status { color: #8b949e; margin-bottom: 5px; font-size: 14px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitMortem Explorer</title>
+<style>
+    body { font-family: Arial, sans-serif; background:#0d1117; color:#c9d1d9; padding:20px; }
+    input, button { padding: 10px; border-radius: 6px; }
+    input { width: 70%; border:1px solid #30363d; background:#161b22; color:#fff; }
+    button { background:#238636; border:none; color:white; cursor:pointer; font-weight:bold; }
+    button:hover { background:#2ea44f; }
+    #tree { white-space: pre-wrap; font-family: monospace; margin-top:20px; padding:10px; background:#161b22; border-radius:6px; }
+    .folder { cursor:pointer; color:#58a6ff; }
+    .file-link { cursor:pointer; color:#a5d6ff; }
+    .hidden { display:none; }
+    #preview-box { margin-top:20px; padding:10px; background:#161b22; border-radius:6px; }
+    pre { white-space: pre-wrap; }
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
 </head>
+
 <body>
-    <div class="container">
-        <h2>🚀 Universal GitHub Explorer</h2>
-        <p>Auto-detects account token based on Repo Owner. Works for Private & Public repos.</p>
-        
-        <form id="repo-form">
-            <input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread" required>
-            <button type="submit">Generate Tree</button>
-        </form>
+<h2>🚀 GitMortem Explorer</h2>
+<p>Browse any GitHub repo — Public or Private 🔐</p>
 
-        <h3 style="margin-top: 30px;">Output (Copy for AI):</h3>
-        <div id="status-msg" class="status">Waiting for input...</div>
-        <pre id="output"></pre>
-    </div>
+<input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread">
+<button id="load-btn">Generate Tree</button>
 
-    <script>
-        document.getElementById('repo-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const output = document.getElementById('output');
-            const statusMsg = document.getElementById('status-msg');
-            const inputUrl = document.getElementById('repo-url').value;
-            
-            output.textContent = '';
-            statusMsg.textContent = '🚀 Scanning repository... identifying owner... fetching structure...';
+<div id="status">Waiting…</div>
+<div id="tree"></div>
 
-            try {
-                // URL se Owner aur Repo nikalna
-                const urlObj = new URL(inputUrl);
-                const pathParts = urlObj.pathname.split('/').filter(p => p); // Empty parts hata do
-                
-                // GitHub URL format check: /owner/repo
-                if (pathParts.length < 2) throw new Error("Invalid GitHub URL. Format: https://github.com/owner/repo");
-                
-                const owner = pathParts[0];
-                const repo = pathParts[1];
+<h3>📄 File Preview:</h3>
+<div id="preview-box">Select a file...</div>
 
-                // Backend call
-                const res = await fetch(`/api/explore?owner=${owner}&repo=${repo}`);
-                const text = await res.text();
-
-                if (text.startsWith('Error:')) throw new Error(text);
-
-                statusMsg.textContent = '✅ Done! Copy the text below.';
-                // Links ko clickable banana taaki aap test kar sakein
-                output.innerHTML = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="link">$1</a>');
-
-            } catch (err) {
-                statusMsg.textContent = '❌ Failed.';
-                output.textContent = "Error: " + err.message;
-            }
-        });
-    </script>
+<script src="app.js"></script>
 </body>
 </html>
