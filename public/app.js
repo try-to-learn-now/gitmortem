@@ -23,7 +23,10 @@ document.getElementById("load-btn").addEventListener("click", async () => {
         if (text.startsWith("Error:")) throw new Error(text);
 
         status.textContent = "✔️ Done! You can copy the upper panel for AI.";
-        treeBox.innerHTML = text; // contains spans + links
+        treeBox.innerHTML = text; // contains folder-panel divs + spans
+
+        // Inject per-folder copy buttons
+        enhanceFolderPanels();
 
     } catch (err) {
         status.textContent = "❌ Failed";
@@ -72,7 +75,7 @@ document.getElementById("tree").addEventListener("click", async (e) => {
     }
 });
 
-// Icon-only copy buttons (both panels)
+// Global copy buttons (AI panel + preview panel)
 document.querySelectorAll(".copy-icon-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
         const targetId = btn.dataset.target;
@@ -95,6 +98,57 @@ function showCopiedToast(targetId) {
     if (!el) return;
     el.textContent = "Copied!";
     setTimeout(() => { el.textContent = ""; }, 1200);
+}
+
+// Per-folder panel copy injection
+function enhanceFolderPanels() {
+    const panels = document.querySelectorAll(".folder-panel");
+
+    panels.forEach((panel) => {
+        // Already enhanced? prevent duplicate
+        if (panel.dataset.enhanced === "1") return;
+        panel.dataset.enhanced = "1";
+
+        const titleDiv = panel.querySelector(".folder-panel-title");
+        const pre = panel.querySelector("pre");
+        if (!titleDiv || !pre) return;
+
+        // Wrap title + add button container
+        const header = document.createElement("div");
+        header.className = "folder-panel-header";
+
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "folder-panel-title";
+        titleSpan.textContent = titleDiv.textContent;
+
+        const btn = document.createElement("button");
+        btn.className = "folder-panel-copy-btn";
+        btn.type = "button";
+        btn.title = "Copy this folder block";
+        btn.textContent = "📋";
+
+        btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const text = pre.innerText || pre.textContent || "";
+            try {
+                await navigator.clipboard.writeText(text);
+                // small inline visual feedback
+                btn.textContent = "✅";
+                setTimeout(() => { btn.textContent = "📋"; }, 900);
+            } catch (err) {
+                console.error("Folder copy failed:", err);
+            }
+        });
+
+        const rightWrap = document.createElement("div");
+        rightWrap.appendChild(btn);
+
+        header.appendChild(titleSpan);
+        header.appendChild(rightWrap);
+
+        // replace old titleDiv with new header
+        titleDiv.replaceWith(header);
+    });
 }
 
 function escapeHtml(txt) {
