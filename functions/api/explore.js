@@ -1,33 +1,37 @@
 // File Path: /functions/api/explore.js
 
-/**
- * Yeh "The Brain" hai. File list fetch karta hai aur smart token selection karta hai.
- * @param {object} context - Cloudflare ka context object.
- */
 export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
-    const origin = url.origin; // Yeh aapka domain nikalega (e.g., https://my-app.pages.dev)
+    
+    // Aapke site ka domain (e.g., https://my-site.pages.dev)
+    const origin = url.origin; 
     
     const owner = url.searchParams.get('owner');
     const repo = url.searchParams.get('repo');
 
     if (!owner || !repo) {
-        return new Response('Error: Owner and Repo are required in the URL.', { status: 400 });
+        return new Response('Error: Owner and Repo required.', { status: 400 });
     }
 
-    // --- SMART TOKEN SELECTION LOGIC ---
-    // 1. Owner ke naam ko uppercase aur valid environment variable format mein badlo.
-    const envVarName = `TOKEN_${owner.toUpperCase().replace(/-/g, '_')}`;
+    // --- 🧠 SMART TOKEN LOGIC ---
+    // Owner ka naam clean karo (uppercase aur hyphens ko underscore banao)
+    // Example: "try-to-learn-now" -> "TRY_TO_LEARN_NOW"
+    const cleanOwner = owner.toUpperCase().replace(/-/g, '_');
     
-    // 2. Check karo agar us owner ka specific token hai, warna DEFAULT token use karo.
+    // Variable naam banao: "TOKEN_" + Owner Name
+    const envVarName = `TOKEN_${cleanOwner}`;
+    
+    // Check karo Cloudflare mein yeh secret hai ya nahi, nahi toh DEFAULT use karo
     let token = env[envVarName] || env.TOKEN_DEFAULT;
-    
-    // Debugging ke liye: Cloudflare logs mein dikhega ki kaunsa token uthaya gaya.
-    console.log(`Repo Owner: ${owner}, Using Token Variable: ${env[envVarName] ? envVarName : 'TOKEN_DEFAULT'}`);
+
+    // Console logs (Cloudflare dashboard mein dikhenge debugging ke liye)
+    console.log(`Repo: ${owner}/${repo}`);
+    console.log(`Attempting to use secret: ${envVarName}`);
+    console.log(`Token found? ${token ? "YES" : "NO (Using fallback if available)"}`);
 
     if (!token) {
-        return new Response('Error: Server is not configured with GitHub tokens. Please set TOKEN_DEFAULT at least.', { status: 500 });
+        return new Response('Error: No token found for this user, and no TOKEN_DEFAULT set.', { status: 500 });
     }
 
     // GitHub API call
@@ -35,23 +39,26 @@ export async function onRequest(context) {
 
     try {
         const response = await fetch(apiUrl, {
-            headers: { 'Authorization': `token ${token}`, 'User-Agent': 'Cloudflare-Worker-Explorer' }
+            headers: {
+                'Authorization': `token ${token}`,
+                'User-Agent': 'Cloudflare-Worker-Explorer'
+            }
         });
 
         if (!response.ok) {
-            if (response.status === 404) return new Response(`Error: Repository not found or it's private and the token is invalid.`, { status: 404 });
+            if (response.status === 404) return new Response(`Error: Repo not found or Private (Token for '${owner}' might be invalid).`, { status: 404 });
             return new Response(`GitHub API Error: ${response.statusText}`, { status: response.status });
         }
 
         const data = await response.json();
         
-        // --- TREE GENERATION WITH FULL PROXY URLS ---
+        // --- TREE GENERATION WITH FULL DOMAIN URLS ---
         let output = `${repo}/\n`;
         const tree = {};
 
-        // GitHub se mili flat list ko ek nested tree object mein convert karo
+        // Flat list se Nested object banana
         data.tree.forEach(file => {
-            if (file.type !== 'blob') return;
+            if (file.type !== 'blob') return; // Sirf files chahiye
             let current = tree;
             file.path.split('/').forEach((part, i, arr) => {
                 if (!current[part]) current[part] = {};
@@ -63,7 +70,7 @@ export async function onRequest(context) {
             });
         });
 
-        // Nested object se text-based tree banao
+        // Text Output banana
         const buildTree = (node, prefix = '') => {
             let result = '';
             const entries = Object.keys(node);
@@ -73,10 +80,12 @@ export async function onRequest(context) {
                 const nextPrefix = prefix + (isLast ? '   ' : '│  ');
 
                 if (node[entry].__isFile) {
-                    // --- MAGIC: Full Domain Proxy URL ban raha hai ---
-                    const fullProxyUrl = `${origin}/api/get-file?owner=${owner}&repo=${repo}&path=${encodeURIComponent(node[entry].path)}`;
+                    // YAHAN HAI MAIN GAME: Full URL generate ho raha hai
+                    // URL mein 'owner' aur 'repo' pass kar rahe hain taaki 'get-file' ko pata ho kiska token use karna hai
+                    const fullUrl = `${origin}/api/get-file?owner=${owner}&repo=${repo}&path=${encodeURIComponent(node[entry].path)}`;
+                    
                     result += `${prefix}${connector} ${entry}\n`;
-                    result += `${prefix}${isLast ? '   ' : '│  '}└─ 🔗 ${fullProxyUrl}\n`;
+                    result += `${prefix}${isLast ? '   ' : '│  '}└─ 🔗 ${fullUrl}\n`;
                 } else {
                     result += `${prefix}${connector} ${entry}/\n`;
                     result += buildTree(node[entry], nextPrefix);
@@ -92,3 +101,4 @@ export async function onRequest(context) {
         return new Response(`Server Error: ${e.message}`, { status: 500 });
     }
 }
+
