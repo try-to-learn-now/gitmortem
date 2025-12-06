@@ -105,10 +105,11 @@
     max-width: 100%;
   }
 
- #tree {
-    max-height: 900px;
-    overflow:auto;
- }
+  /* Desktop / default: no hard lock, normal height */
+  #tree {
+    max-height: none;
+    overflow: visible;
+  }
 
   .folder-panel {
     margin-bottom:10px;
@@ -144,7 +145,7 @@
     padding:8px 10px;
     font-size:12px;
     overflow:auto;
-    max-height: 420px;
+    max-height: none; /* desktop: free */
   }
 
   #preview-box pre {
@@ -153,6 +154,7 @@
     word-break:break-word;
   }
 
+  /* 📱 Mobile tweaks */
   @media (max-width: 540px) {
     input {
       width:100%;
@@ -162,6 +164,17 @@
       margin-left:0;
       width:100%;
       margin-top:4px;
+    }
+
+    /* Tree ≈ 70–80% screen height */
+    #tree {
+      max-height: 70vh;
+      overflow:auto;
+    }
+
+    /* Preview panel chhota, ~20–25% */
+    #preview-box {
+      max-height: 25vh;
     }
   }
 </style>
