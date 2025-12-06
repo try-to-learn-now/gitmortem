@@ -1,5 +1,3 @@
-// File: functions/api/explore.js
-
 export async function onRequest(context) {
     const { env } = context;
     const url = new URL(context.request.url);
@@ -7,129 +5,102 @@ export async function onRequest(context) {
     const owner = url.searchParams.get("owner");
     const repo = url.searchParams.get("repo");
 
-    if (!owner || !repo) {
-        return new Response("Error: Missing owner/repo", { status: 400 });
-    }
+    if (!owner || !repo)
+        return new Response("Missing owner/repo", { status: 400 });
 
-    const cleanOwner = owner.toUpperCase().replace(/-/g, "_");
-    const envVar = `TOKEN_${cleanOwner}`;
-    const token = env[envVar] || env.TOKEN_DEFAULT;
-
-    console.log("========== GITMORTEM ==========");
-    console.log("Owner:", owner);
-    console.log("Repo:", repo);
-    console.log("Token Found:", token ? "YES" : "NO");
+    const token = env[`TOKEN_${owner.toUpperCase()}`] || env.TOKEN_DEFAULT;
 
     try {
-        const repoInfoUrl = `https://api.github.com/repos/${owner}/${repo}`;
-        const repoInfoRes = await fetch(repoInfoUrl, {
+        const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
             headers: {
                 "Authorization": `Bearer ${token}`,
                 "Accept": "application/vnd.github+json",
-                "User-Agent": "GitMortem-Explorer"
+                "User-Agent": "GitMortem"
             }
         });
 
         const repoInfo = await repoInfoRes.json();
-        if (!repoInfoRes.ok) {
-            return new Response(`RepoInfo Error: ${repoInfo.message}`, {
-                status: repoInfoRes.status
-            });
-        }
+        if (!repoInfoRes.ok)
+            return new Response(repoInfo.message, { status: repoInfoRes.status });
 
         const branch = repoInfo.default_branch || "main";
 
-        const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-        const treeRes = await fetch(treeUrl, {
-            headers: {
-                "Authorization": `Bearer ${token}`,
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "GitMortem-Explorer"
+        const treeRes = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "GitMortem"
+                }
             }
-        });
+        );
 
-        const treeJson = await treeRes.json();
-        if (!treeRes.ok) {
-            return new Response(`Tree Error: ${treeJson.message}`, {
-                status: treeRes.status
-            });
-        }
+        const tree = await treeRes.json();
+        if (!treeRes.ok)
+            return new Response(tree.message, { status: treeRes.status });
 
         const root = {};
 
-        (treeJson.tree || []).forEach(item => {
+        tree.tree.forEach(item => {
             const parts = item.path.split("/");
             let node = root;
-
-            parts.forEach((part, idx) => {
-                if (!node[part]) {
-                    node[part] = {
-                        __children: {},
-                        __isFile: false,
-                        path: null
-                    };
+            parts.forEach((p, i) => {
+                node[p] ??= { __children: {}, __isFile: false, path: null };
+                if (i === parts.length - 1 && item.type === "blob") {
+                    node[p].__isFile = true;
+                    node[p].path = item.path;
                 }
-
-                if (idx === parts.length - 1 && item.type === "blob") {
-                    node[part].__isFile = true;
-                    node[part].path = item.path;
-                }
-
-                node = node[part].__children;
+                node = node[p].__children;
             });
         });
 
-        const renderFolderChildren = (folderEntry) => {
-            const children = folderEntry.__children || {};
-            const names = Object.keys(children).sort();
+        const fileLine = (e, name, indent) =>
+            `${indent}├── 📄 ${name}\n${indent}│   └─ 🔗 ${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(e.path)}\n`;
 
-            return names.map(name => {
-                const entry = children[name];
-                if (entry.__isFile) {
-                    const fileUrl = `${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(entry.path)}`;
-                    return `├── 📄 <span class="file-link" data-url="${fileUrl}" data-filename="${name}">${name}</span>\n`;
-                } else {
-                    return `├── 📁 ${name}/\n`;
-                }
-            }).join("") || "(empty folder)\n";
+        const folderLine = (name, indent) =>
+            `${indent}├── 📁 ${name}/\n`;
+
+        const buildPanel = (fullPath, entry) => {
+            let s = `📁 ${fullPath}/\n📋\n`;
+            const names = Object.keys(entry.__children)
+                .sort(a => entry.__children[a].__isFile ? 1 : -1);
+
+            names.forEach(name => {
+                const e = entry.__children[name];
+                if (e.__isFile)
+                    s += fileLine(e, name, "");
+                else
+                    s += folderLine(name, "");
+            });
+
+            return s + "\n";
         };
 
-        const folderEntries = [];
+        const panels = [];
 
         const walk = (entry, fullPath) => {
-            folderEntries.push({ fullPath, entry });
-            for (const name in entry.__children) {
-                const child = entry.__children[name];
-                if (!child.__isFile) {
-                    walk(child, `${fullPath}/${name}`);
-                }
+            panels.push(buildPanel(fullPath, entry));
+            for (const k in entry.__children) {
+                const e = entry.__children[k];
+                if (!e.__isFile)
+                    walk(e, `${fullPath}/${k}`);
             }
         };
 
         walk({ __children: root }, repo);
 
-        let html = "";
-
-        folderEntries.forEach(({ fullPath, entry }) => {
-            html += `
-<div class="folder-panel">
-  <div class="folder-panel-header">
-    <span class="folder-panel-title">📁 ${fullPath}/</span>
-    <button class="folder-panel-copy-btn" data-copy="${fullPath}/">📋</button>
-  </div>
-  <pre>${renderFolderChildren(entry)}</pre>
-</div>\n\n`;
-        });
-
-        return new Response(html, {
-            headers: {
-                "Content-Type": "text/html; charset=utf-8",
-                "Access-Control-Allow-Origin": "*"
+        return new Response(
+            panels.join("\n"),
+            {
+                headers: {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Access-Control-Allow-Origin": "*"
+                }
             }
-        });
+        );
 
-    } catch (e) {
-        console.log("CRASH=>", e);
-        return new Response(`Crash: ${e.message}`, { status: 500 });
+    } catch (err) {
+        return new Response("Crash: " + err.message, { status: 500 });
     }
 }
