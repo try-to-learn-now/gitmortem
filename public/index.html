@@ -1,0 +1,78 @@
+<!-- File Path: /public/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <!-- === DESKTOP VIEW LOCK === -->
+    <!-- Yeh line mobile browser ko desktop layout render karne ke liye force karegi -->
+    <meta name="viewport" content="width=1024">
+
+    <title>Universal Repo Explorer</title>
+
+    <!-- === CSS STYLING === -->
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #0d1117; color: #c9d1d9; }
+        .container { max-width: 900px; margin: 0 auto; }
+        input { width: 70%; padding: 10px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; font-size: 14px; }
+        button { padding: 10px 20px; background: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        pre { background: #161b22; padding: 15px; border-radius: 6px; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #30363d; font-size: 14px; }
+        .link { color: #58a6ff; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚀 Universal GitHub Explorer</h2>
+        <p>Auto-detects account token. Paste any Repo URL (Private or Public).</p>
+        
+        <form id="repo-form">
+            <input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread" required>
+            <button type="submit">Generate Tree</button>
+        </form>
+
+        <h3 style="margin-top: 20px;">Output (Copy for AI):</h3>
+        <pre id="output">Waiting for input...</pre>
+    </div>
+
+    <!-- === JAVASCRIPT LOGIC === -->
+    <script>
+        // Jab user form submit karega (button click karega), toh yeh function chalega
+        document.getElementById('repo-form').addEventListener('submit', async (e) => {
+            // Form ko default tarike se submit hone se roko
+            e.preventDefault();
+            
+            const output = document.getElementById('output');
+            const inputUrl = document.getElementById('repo-url').value;
+            
+            // Purana output saaf karke loading message dikhao
+            output.textContent = 'Scanning repository... This may take a moment.';
+
+            try {
+                const urlObj = new URL(inputUrl);
+                // URL se 'owner' aur 'repo' ka naam nikalo (e.g., /owner/repo)
+                const [_, owner, repo] = urlObj.pathname.split('/');
+                
+                if (!owner || !repo) throw new Error("Invalid GitHub URL. Format should be https://github.com/owner/repo");
+                
+                // Hamare backend API ko call karo
+                const res = await fetch(`/api/explore?owner=${owner}&repo=${repo}`);
+                const text = await res.text();
+
+                // Agar API se koi error aaya (like 'Error: ...'), to usko text mein hi dikha do
+                if (text.startsWith('Error:')) {
+                    throw new Error(text);
+                }
+
+                // Final output ko page par dikhao. Links ko clickable bana do.
+                output.innerHTML = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="link">$1</a>');
+
+            } catch (err) {
+                // Agar koi bhi error aata hai, toh user ko error message dikhao
+                output.textContent = "Error: " + err.message;
+            }
+        });
+    </script>
+</body>
+</html>
