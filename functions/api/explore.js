@@ -1,3 +1,5 @@
+// File: functions/api/explore.js
+
 export async function onRequest(context) {
     const { env } = context;
     const url = new URL(context.request.url);
@@ -11,21 +13,17 @@ export async function onRequest(context) {
     const token = env[`TOKEN_${owner.toUpperCase()}`] || env.TOKEN_DEFAULT;
 
     try {
-        const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+        const repoInfo = await (await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
             headers: {
                 "Authorization": `Bearer ${token}`,
                 "Accept": "application/vnd.github+json",
                 "User-Agent": "GitMortem"
             }
-        });
-
-        const repoInfo = await repoInfoRes.json();
-        if (!repoInfoRes.ok)
-            return new Response(repoInfo.message, { status: repoInfoRes.status });
+        })).json();
 
         const branch = repoInfo.default_branch || "main";
 
-        const treeRes = await fetch(
+        const tree = await (await fetch(
             `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
             {
                 headers: {
@@ -34,12 +32,9 @@ export async function onRequest(context) {
                     "User-Agent": "GitMortem"
                 }
             }
-        );
+        )).json();
 
-        const tree = await treeRes.json();
-        if (!treeRes.ok)
-            return new Response(tree.message, { status: treeRes.status });
-
+        // Build virtual tree
         const root = {};
 
         tree.tree.forEach(item => {
@@ -55,11 +50,11 @@ export async function onRequest(context) {
             });
         });
 
-        const fileLine = (e, name, indent) =>
-            `${indent}├── 📄 ${name}\n${indent}│   └─ 🔗 ${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(e.path)}\n`;
+        const fileLine = (e, name) =>
+            `├── 📄 ${name}\n│   └─ 🔗 ${url.origin}/api/get-code?owner=${owner}&repo=${repo}&path=${encodeURIComponent(e.path)}\n`;
 
-        const folderLine = (name, indent) =>
-            `${indent}├── 📁 ${name}/\n`;
+        const folderLine = name =>
+            `├── 📁 ${name}/\n`;
 
         const buildPanel = (fullPath, entry) => {
             let s = `📁 ${fullPath}/\n📋\n`;
@@ -68,10 +63,8 @@ export async function onRequest(context) {
 
             names.forEach(name => {
                 const e = entry.__children[name];
-                if (e.__isFile)
-                    s += fileLine(e, name, "");
-                else
-                    s += folderLine(name, "");
+                if (e.__isFile) s += fileLine(e, name);
+                else s += folderLine(name);
             });
 
             return s + "\n";
@@ -83,8 +76,7 @@ export async function onRequest(context) {
             panels.push(buildPanel(fullPath, entry));
             for (const k in entry.__children) {
                 const e = entry.__children[k];
-                if (!e.__isFile)
-                    walk(e, `${fullPath}/${k}`);
+                if (!e.__isFile) walk(e, `${fullPath}/${k}`);
             }
         };
 
