@@ -1,4 +1,6 @@
 // File: public/app.js
+// GitMortem Explorer UI (Accuracy Pack + Option A)
+// Adds 🧠 "Copy AI Prompt" that copies strict anti-hallucination rules + pinned commit + tree.
 
 const repoInput = document.getElementById("repo-url");
 const refInput = document.getElementById("ref");
@@ -11,6 +13,8 @@ const treeBox = document.getElementById("tree");
 const previewBox = document.getElementById("preview-box");
 
 const copyTreeBtn = document.getElementById("copy-tree-btn");
+const copyAiBtn = document.getElementById("copy-ai-btn");
+
 const copyPreviewBtn = document.getElementById("copy-preview-btn");
 const openPreviewBtn = document.getElementById("open-preview-btn");
 const nextChunkBtn = document.getElementById("next-chunk-btn");
@@ -23,16 +27,21 @@ let nextStart = -1;        // for get-code chunking
 let nextCursor = -1;       // for bundle paging
 let previewIsBundle = false;
 
+let currentProof = null;
+
 function escapeHtml(txt) {
-  return String(txt).replace(/[&<>"']/g, c =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[c])
-  );
+  return String(txt).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;",
+  }[c]));
 }
 
 function parseRepoInput(input) {
   const s = input.trim();
 
-  // Allow shorthand: owner/repo
   if (/^[^\/\s]+\/[^\/\s]+$/.test(s)) {
     const [owner, repo] = s.split("/");
     return { owner, repo };
@@ -45,60 +54,141 @@ function parseRepoInput(input) {
 }
 
 function buildExploreUrl(owner, repo) {
-  const ref = refInput.value.trim();
+  const ref = (refInput?.value || "").trim();
   let url = `/api/explore?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`;
   if (ref) url += `&ref=${encodeURIComponent(ref)}`;
   return url;
 }
 
-function withLnParam(url) {
-  if (!toggleLn.checked) return url;
-  const u = new URL(url, window.location.origin);
+function withLnParam(urlStr) {
+  if (!toggleLn || !toggleLn.checked) return urlStr;
+  const u = new URL(urlStr, window.location.origin);
   u.searchParams.set("ln", "1");
   return u.pathname + "?" + u.searchParams.toString();
 }
 
+function setStatus(msg) {
+  if (statusEl) statusEl.textContent = msg;
+}
+
+function setPreviewText(text) {
+  previewBox.innerHTML = `<pre><code class="language-text">${escapeHtml(text)}</code></pre>`;
+  if (window.hljs) hljs.highlightAll();
+}
+
+function header(res, name) {
+  return res.headers.get(name) || "";
+}
+
+function buildProofBlock(proof) {
+  return (
+    `// PROOF\n` +
+    `// X-Commit-SHA: ${proof.commitSha || "?"}\n` +
+    `// X-Source: ${proof.source || "?"}\n` +
+    (proof.fullSha ? `// X-Full-SHA256: ${proof.fullSha}\n` : "") +
+    (proof.bodySha ? `// X-Body-SHA256: ${proof.bodySha}\n` : "") +
+    (proof.range ? `// X-Range: ${proof.range}\n` : "") +
+    (proof.totalLines ? `// X-Total-Lines: ${proof.totalLines}\n` : "") +
+    (proof.nextStart !== undefined && proof.nextStart !== null ? `// X-Next-Start: ${proof.nextStart}\n` : "") +
+    (proof.totalFiles ? `// X-Total-Files: ${proof.totalFiles}\n` : "") +
+    (proof.cursor ? `// X-Cursor: ${proof.cursor}\n` : "") +
+    (proof.nextCursor !== undefined && proof.nextCursor !== null ? `// X-Next-Cursor: ${proof.nextCursor}\n` : "") +
+    `\n`
+  );
+}
+
+function extractProofHeaders(res, mode) {
+  const commitSha = header(res, "X-Commit-SHA");
+  const source = header(res, "X-Source");
+  const fullSha = header(res, "X-Full-SHA256");
+  const bodySha = header(res, "X-Body-SHA256") || header(res, "X-Chunk-SHA256");
+
+  const proof = { commitSha, source, fullSha, bodySha };
+
+  if (mode === "file") {
+    proof.range = header(res, "X-Range");
+    proof.totalLines = header(res, "X-Total-Lines");
+    proof.nextStart = header(res, "X-Next-Start");
+  } else {
+    proof.totalFiles = header(res, "X-Total-Files");
+    proof.cursor = header(res, "X-Cursor");
+    proof.nextCursor = header(res, "X-Next-Cursor");
+  }
+
+  return proof;
+}
+
+// ------- Option A: Build strict AI instruction + tree -------
+function getPinnedCommitFromTree() {
+  // Explore tip contains a 40-char sha; take first match
+  const text = treeBox?.innerText || "";
+  const m = text.match(/[0-9a-f]{40}/i);
+  return m ? m[0] : "UNKNOWN_COMMIT";
+}
+
+function buildStrictAiInstructionBlock() {
+  const commit = getPinnedCommitFromTree();
+  return (
+`STRICT RULES (GitMortem):
+1) Only use what matches X-Commit-SHA and X-Full-SHA256 shown in the PROOF block.
+2) If something is not present in provided code chunks, reply exactly: NOT IN PROVIDED CODE
+3) Every claim must include line numbers (ln=1) OR chunk ranges (X-Range).
+4) If more code is needed, request the next chunk using X-Next-Start / X-Next-Cursor.
+
+Pinned Commit (proof anchor): ${commit}
+
+--- REPO TREE (copy/paste links below) ---
+`);
+}
+
+copyAiBtn?.addEventListener("click", () => {
+  const payload = buildStrictAiInstructionBlock() + (treeBox?.innerText || "");
+  navigator.clipboard?.writeText(payload).catch(() => {});
+  setStatus("✅ Copied strict AI rules + pinned commit + tree.");
+});
+
 // ---- Tree Load ----
-loadBtn.addEventListener("click", async () => {
-  const input = repoInput.value.trim();
+loadBtn?.addEventListener("click", async () => {
+  const input = (repoInput?.value || "").trim();
   if (!input) return alert("Enter GitHub repo URL (or owner/repo)");
 
-  previewBox.textContent = "Select a file from tree above…";
+  setPreviewText("Select a file from tree above…");
   treeBox.textContent = "";
-  statusEl.textContent = "⏳ Fetching tree...";
+  setStatus("⏳ Fetching tree...");
 
   try {
     const { owner, repo } = parseRepoInput(input);
     const res = await fetch(buildExploreUrl(owner, repo));
-    const text = await res.text();
+    const html = await res.text();
 
-    if (text.startsWith("Error:") || text.startsWith("RepoInfo Error") || text.startsWith("Tree Error")) {
-      throw new Error(text);
+    if (!res.ok || html.startsWith("Error:") || html.startsWith("RepoInfo Error") || html.startsWith("Tree Error")) {
+      throw new Error(html || `Failed (${res.status})`);
     }
 
-    statusEl.textContent = "✅ Done! Copy tree for AI or click a file to preview.";
-    treeBox.innerHTML = text;
+    setStatus("✅ Done! Copy tree for AI or click a file to preview.");
+    treeBox.innerHTML = html;
     wireFolderPanels();
   } catch (err) {
-    statusEl.textContent = "❌ Failed";
-    treeBox.textContent = err.message;
+    setStatus("❌ Failed");
+    treeBox.textContent = err.message || String(err);
   }
 });
 
-clearBtn.addEventListener("click", () => {
+clearBtn?.addEventListener("click", () => {
   treeBox.textContent = "";
-  previewBox.textContent = "Select a file from tree above…";
-  statusEl.textContent = "Waiting…";
+  setPreviewText("Select a file from tree above…");
+  setStatus("Waiting…");
   currentBaseUrl = "";
   currentLabel = "";
   nextStart = -1;
   nextCursor = -1;
   previewIsBundle = false;
+  currentProof = null;
 });
 
 // ---- Folder Panel Buttons ----
 function wireFolderPanels() {
-  document.querySelectorAll(".folder-panel").forEach(panel => {
+  document.querySelectorAll(".folder-panel").forEach((panel) => {
     if (panel.dataset.wired === "1") return;
     panel.dataset.wired = "1";
 
@@ -123,14 +213,12 @@ function wireFolderPanels() {
     mergeBtn.title = "Load whole folder via bundle endpoint";
     mergeBtn.textContent = "⇪";
     mergeBtn.addEventListener("click", () => {
-      // Find the first bundle link inside the panel (we render it in explore.js)
       const bundleLink = panel.querySelector(".file-link[data-filename='bundle']");
       if (!bundleLink) {
-        previewBox.textContent = "No bundle link found in this panel.";
+        setPreviewText("No bundle link found in this panel.");
         return;
       }
-      const url = bundleLink.dataset.url;
-      loadBundlePage(url, "bundle");
+      loadBundlePage(bundleLink.dataset.url, "bundle");
     });
 
     actions.appendChild(copyBtn);
@@ -140,15 +228,14 @@ function wireFolderPanels() {
 }
 
 // ---- Delegated clicks for file links ----
-treeBox.addEventListener("click", async (e) => {
+treeBox?.addEventListener("click", async (e) => {
   const target = e.target;
-  if (!target.classList.contains("file-link")) return;
+  if (!target.classList || !target.classList.contains("file-link")) return;
 
   const url = target.dataset.url;
   const filePath = target.dataset.path || target.dataset.filename || "File";
   if (!url) return;
 
-  // If this is a bundle URL, handle it differently
   if (url.includes("/api/bundle")) {
     loadBundlePage(url, filePath);
     return;
@@ -158,35 +245,32 @@ treeBox.addEventListener("click", async (e) => {
 });
 
 // ---- Preview action buttons ----
-copyTreeBtn.addEventListener("click", () => {
+copyTreeBtn?.addEventListener("click", () => {
   navigator.clipboard?.writeText(treeBox.innerText || "").catch(() => {});
 });
 
-copyPreviewBtn.addEventListener("click", () => {
+copyPreviewBtn?.addEventListener("click", () => {
   navigator.clipboard?.writeText(previewBox.innerText || "").catch(() => {});
 });
 
-openPreviewBtn.addEventListener("click", () => {
+openPreviewBtn?.addEventListener("click", () => {
   if (!currentBaseUrl) return;
   window.open(currentBaseUrl, "_blank");
 });
 
-toggleLn.addEventListener("change", () => {
-  // reload current view
+toggleLn?.addEventListener("change", () => {
   if (!currentBaseUrl) return;
-  if (previewIsBundle) {
-    loadBundlePage(currentBaseUrl, currentLabel);
-  } else {
-    loadFileFirstChunk(currentBaseUrl, currentLabel);
-  }
+
+  if (previewIsBundle) loadBundlePage(currentBaseUrl, currentLabel, false, true);
+  else loadFileFirstChunk(currentBaseUrl, currentLabel, true);
 });
 
-nextChunkBtn.addEventListener("click", async () => {
+nextChunkBtn?.addEventListener("click", async () => {
   if (!currentBaseUrl) return;
 
   if (previewIsBundle) {
-    if (nextCursor === -1) {
-      statusEl.textContent = "✅ Bundle already complete.";
+    if (nextCursor === -1 || nextCursor === "-1") {
+      setStatus("✅ Bundle already complete.");
       return;
     }
     const u = new URL(currentBaseUrl, window.location.origin);
@@ -195,35 +279,34 @@ nextChunkBtn.addEventListener("click", async () => {
     return;
   }
 
-  if (nextStart === -1) {
-    statusEl.textContent = "✅ File already complete.";
+  if (nextStart === -1 || nextStart === "-1") {
+    setStatus("✅ File already complete.");
     return;
   }
-  await appendFileChunk(currentBaseUrl, currentLabel, nextStart);
+
+  await appendFileChunk(currentBaseUrl, currentLabel, Number(nextStart));
 });
 
-allChunksBtn.addEventListener("click", async () => {
+allChunksBtn?.addEventListener("click", async () => {
   if (!currentBaseUrl) return;
 
   if (previewIsBundle) {
-    // load until done
     let url = currentBaseUrl;
     let guard = 0;
-    while (guard++ < 200) {
+    while (guard++ < 400) {
       const done = await loadBundlePage(url, currentLabel, true);
       if (done) break;
       const u = new URL(url, window.location.origin);
       u.searchParams.set("cursor", String(nextCursor));
       url = u.pathname + "?" + u.searchParams.toString();
-      if (nextCursor === -1) break;
+      if (nextCursor === -1 || nextCursor === "-1") break;
     }
     return;
   }
 
-  // load file chunks until done
   let guard = 0;
-  while (nextStart !== -1 && guard++ < 500) {
-    await appendFileChunk(currentBaseUrl, currentLabel, nextStart);
+  while ((nextStart !== -1 && nextStart !== "-1") && guard++ < 1000) {
+    await appendFileChunk(currentBaseUrl, currentLabel, Number(nextStart));
   }
 });
 
@@ -240,59 +323,77 @@ async function loadFileFirstChunk(baseUrl, label) {
   currentBaseUrl = baseUrl;
   currentLabel = label;
 
-  previewBox.textContent = `⏳ Loading ${label} (chunk 1)...`;
-  statusEl.textContent = "⏳ Loading file...";
+  currentProof = null;
+  nextStart = -1;
 
-  // first chunk: 1..400 lines
+  setPreviewText(`⏳ Loading ${label} (chunk 1)...`);
+  setStatus("⏳ Loading file...");
+
   const chunkUrl = makeChunkUrl(baseUrl, 1, 400);
   const res = await fetch(chunkUrl);
   const text = await res.text();
 
   if (!res.ok) {
-    previewBox.textContent = text;
-    statusEl.textContent = "❌ Failed";
+    setPreviewText(text || `Failed (${res.status})`);
+    setStatus("❌ Failed");
     nextStart = -1;
     return;
   }
 
-  nextStart = parseInt(res.headers.get("X-Next-Start") || "-1", 10);
-  const range = res.headers.get("X-Range") || "";
-  const total = res.headers.get("X-Total-Lines") || "";
+  const proof = extractProofHeaders(res, "file");
+  currentProof = proof;
 
-  const wrapped = `// File: ${label}\n// Lines: ${range}/${total}\n// NextStart: ${nextStart}\n\n${text}`;
-  previewBox.innerHTML = `<pre><code>${escapeHtml(wrapped)}</code></pre>`;
-  if (window.hljs) hljs.highlightAll();
+  nextStart = header(res, "X-Next-Start") || "-1";
+  const range = header(res, "X-Range") || "";
+  const total = header(res, "X-Total-Lines") || "";
 
-  statusEl.textContent = nextStart === -1 ? "✅ File complete." : "✅ Loaded first chunk. Use ➕ / ⇪ for more.";
+  const proofBlock = buildProofBlock({ ...proof, range, totalLines: total, nextStart });
+
+  const wrapped =
+    proofBlock +
+    `// File: ${label}\n` +
+    `// Lines: ${range}/${total}\n` +
+    `// NextStart: ${nextStart}\n\n` +
+    text;
+
+  setPreviewText(wrapped);
+
+  setStatus((nextStart === "-1" || nextStart === -1) ? "✅ File complete." : "✅ Loaded first chunk. Use ➕ / ⇪ for more.");
 }
 
 async function appendFileChunk(baseUrl, label, startLine) {
   const endLine = startLine + 399;
-  statusEl.textContent = `⏳ Loading next chunk (${startLine}-${endLine})...`;
+  setStatus(`⏳ Loading next chunk (${startLine}-${endLine})...`);
 
   const chunkUrl = makeChunkUrl(baseUrl, startLine, endLine);
   const res = await fetch(chunkUrl);
   const text = await res.text();
 
   if (!res.ok) {
-    statusEl.textContent = "❌ Failed chunk";
+    setStatus("❌ Failed chunk");
     return;
   }
 
-  const newNext = parseInt(res.headers.get("X-Next-Start") || "-1", 10);
+  const proof = extractProofHeaders(res, "file");
+  const newNext = header(res, "X-Next-Start") || "-1";
   nextStart = newNext;
 
-  // Append to existing code text
   const current = previewBox.innerText || "";
+  const chunkProof =
+    `\n\n// CHUNK PROOF\n` +
+    `// X-Range: ${proof.range || "?"}\n` +
+    `// X-Body-SHA256: ${proof.bodySha || "?"}\n` +
+    `// X-Next-Start: ${newNext}\n\n`;
+
   const appended =
     current +
-    `\n\n// -------- chunk ${startLine}-${Math.min(endLine, parseInt(res.headers.get("X-Total-Lines") || "0", 10) || endLine)} --------\n\n` +
+    `\n\n// -------- chunk ${startLine}-${endLine} --------\n` +
+    chunkProof +
     text;
 
-  previewBox.innerHTML = `<pre><code>${escapeHtml(appended)}</code></pre>`;
-  if (window.hljs) hljs.highlightAll();
+  setPreviewText(appended);
 
-  statusEl.textContent = nextStart === -1 ? "✅ File complete." : "✅ Chunk appended. More available.";
+  setStatus((nextStart === "-1" || nextStart === -1) ? "✅ File complete." : "✅ Chunk appended. More available.");
 }
 
 // ---- Bundle loader ----
@@ -302,28 +403,39 @@ async function loadBundlePage(bundleUrl, label, append = false) {
   currentLabel = label;
 
   if (!append) {
-    previewBox.textContent = `⏳ Loading bundle page...`;
+    currentProof = null;
+    nextCursor = -1;
+    setPreviewText(`⏳ Loading bundle page...`);
   }
-  statusEl.textContent = "⏳ Loading bundle...";
+  setStatus("⏳ Loading bundle...");
 
   const res = await fetch(withLnParam(bundleUrl));
   const text = await res.text();
 
   if (!res.ok) {
-    previewBox.textContent = text;
-    statusEl.textContent = "❌ Failed";
+    setPreviewText(text || `Failed (${res.status})`);
+    setStatus("❌ Failed");
     nextCursor = -1;
     return true;
   }
 
-  nextCursor = parseInt(res.headers.get("X-Next-Cursor") || "-1", 10);
+  const proof = extractProofHeaders(res, "bundle");
+  if (!append) currentProof = proof;
+
+  nextCursor = header(res, "X-Next-Cursor") || "-1";
 
   const current = append ? (previewBox.innerText || "") : "";
-  const merged = append ? (current + "\n\n// ===== NEXT BUNDLE PAGE =====\n\n" + text) : text;
 
-  previewBox.innerHTML = `<pre><code>${escapeHtml(merged)}</code></pre>`;
-  if (window.hljs) hljs.highlightAll();
+  const proofBlock = append
+    ? `\n\n// BUNDLE PAGE PROOF\n// X-Body-SHA256: ${proof.bodySha || "?"}\n// X-Next-Cursor: ${nextCursor}\n\n`
+    : buildProofBlock({ ...proof, nextCursor });
 
-  statusEl.textContent = nextCursor === -1 ? "✅ Bundle complete." : "✅ Bundle page loaded. Use ➕ / ⇪ for more.";
-  return nextCursor === -1;
-    }
+  const merged = append
+    ? (current + "\n\n// ===== NEXT BUNDLE PAGE =====\n" + proofBlock + text)
+    : (proofBlock + text);
+
+  setPreviewText(merged);
+
+  setStatus((nextCursor === "-1" || nextCursor === -1) ? "✅ Bundle complete." : "✅ Bundle page loaded. Use ➕ / ⇪ for more.");
+  return (nextCursor === "-1" || nextCursor === -1);
+      }
