@@ -1,217 +1,170 @@
+<!-- File: public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GitMortem Explorer</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-    background:#0d1117;
-    color:#c9d1d9;
-    padding:16px;
-  }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitMortem Explorer</title>
 
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-  }
-
-  h2 {
-    margin-bottom: 4px;
-  }
-  p {
-    margin-top: 0;
-    margin-bottom: 12px;
-    font-size: 13px;
-    color:#8b949e;
-  }
-
-  input {
-    width: 70%;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border:1px solid #30363d;
-    background:#161b22;
-    color:#fff;
-    font-size: 14px;
-  }
-  button {
-    padding: 8px 14px;
-    border-radius: 6px;
-    border:none;
-    cursor:pointer;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  #load-btn {
-    background:#238636;
-    color:#fff;
-    margin-left:6px;
-  }
-  #load-btn:hover {
-    background:#2ea44f;
-  }
-
-  .card {
-    background:#0d1117;
-    border:1px solid #30363d;
-    border-radius: 10px;
-    padding:10px 12px;
-    margin-top:12px;
-  }
-
-  /* header me title & icon ke beech accha gap + icon edge se thoda door */
-  .card-header {
-    display:flex;
-    align-items:center;
-    font-size:13px;
-    margin-bottom:6px;
-}
-
-/* NEW: space between title & actions */
-.card-title {
-    margin-right: 40px !important;
-}
-
-/* NEW: push buttons more to the right */
-.card-actions {
-    margin-left:auto;
-    margin-right: 8px !important;
-    gap:10px; /* icon ke beech gap */
-}
-
-  .icon-btn {
-    background:#161b22;
-    border:1px solid #30363d;
-    border-radius:6px;
-    padding:3px 7px;
-    font-size:13px;
-    line-height:1;
-  }
-  .icon-btn:hover {
-    background:#21262d;
-  }
-
-  .icon-btn.merge {
-    border-color:#ff7675;
-    color:#ff7675;
-  }
-
-  #status {
-    font-size:12px;
-    color:#8b949e;
-    margin-top:4px;
-  }
-
-  .panel-container {
-    max-width: 100%;
-  }
-
-  /* ✅ Hamesha: tree ~70% viewport height tak, scrollable */
-  #tree {
-    max-height: 70vh;
-    overflow:auto;
-  }
-
-  .folder-panel {
-    margin-bottom:10px;
-    padding:8px 10px;
-    background:#161b22;
-    border-radius: 8px;
-    border:1px solid #30363d;
-  }
-
-  .folder-panel-title {
-    font-size:13px;
-    margin-bottom:4px;
-  }
-
-  .folder-panel pre {
-    overflow-x: auto;
-    white-space: pre;
-  }
-
-  .file-link {
-    color:#58a6ff;
-    cursor:pointer;
-  }
-  .file-link:hover {
-    text-decoration:underline;
-  }
-
-  /* ✅ Preview ~30% viewport height, scrollable */
-  #preview-box {
-    min-height: 120px;
-    background:#161b22;
-    border-radius:8px;
-    border:1px solid #30363d;
-    padding:8px 10px;
-    font-size:12px;
-    overflow:auto;
-    max-height: 30vh;
-  }
-
-  #preview-box pre {
-    margin:0;
-    white-space:pre-wrap;
-    word-break:break-word;
-  }
-
-  /* Sirf input / button ka responsive tweak */
-  @media (max-width: 540px) {
-    input {
-      width:100%;
-      margin-bottom:8px;
+  <style>
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:#0d1117;
+      color:#c9d1d9;
+      padding:16px;
     }
-    #load-btn {
-      margin-left:0;
-      width:100%;
-      margin-top:4px;
-    }
-  }
-</style>
+    .container{max-width:960px;margin:0 auto;}
+    h2{margin-bottom:4px;}
+    p{margin-top:0;margin-bottom:12px;font-size:13px;color:#8b949e;}
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    .row{display:flex;gap:8px;flex-wrap:wrap;}
+    input{
+      flex:1 1 240px;
+      padding:8px 10px;
+      border-radius:6px;
+      border:1px solid #30363d;
+      background:#161b22;
+      color:#fff;
+      font-size:14px;
+      min-width: 220px;
+    }
+    button{
+      padding:8px 14px;
+      border-radius:6px;
+      border:none;
+      cursor:pointer;
+      font-size:13px;
+      font-weight:600;
+    }
+    #load-btn{background:#238636;color:#fff;}
+    #load-btn:hover{background:#2ea44f;}
+    #clear-btn{background:#21262d;color:#c9d1d9;border:1px solid #30363d;}
+    #clear-btn:hover{background:#30363d;}
+
+    .card{
+      background:#0d1117;
+      border:1px solid #30363d;
+      border-radius:10px;
+      padding:10px 12px;
+      margin-top:12px;
+    }
+    .card-header{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+    .card-title{font-weight:700;}
+    .card-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+
+    .icon-btn{
+      background:#161b22;
+      border:1px solid #30363d;
+      border-radius:6px;
+      padding:4px 8px;
+      font-size:13px;
+      line-height:1;
+      color:#c9d1d9;
+    }
+    .icon-btn:hover{background:#21262d;}
+    .icon-btn.merge{border-color:#ff7675;color:#ff7675;}
+
+    #status{font-size:12px;color:#8b949e;margin-top:6px;}
+
+    /* Tree area */
+    #tree{max-height:70vh;overflow:auto;}
+
+    .folder-panel{
+      margin-bottom:10px;
+      padding:8px 10px;
+      background:#161b22;
+      border-radius:8px;
+      border:1px solid #30363d;
+    }
+    .folder-panel-title{font-size:13px;margin-bottom:4px;font-weight:700;}
+    .folder-panel pre{overflow-x:auto;white-space:pre;margin:0;}
+    .file-link{color:#58a6ff;cursor:pointer;}
+    .file-link:hover{text-decoration:underline;}
+
+    /* Preview */
+    #preview-box{
+      min-height:120px;
+      background:#161b22;
+      border-radius:8px;
+      border:1px solid #30363d;
+      padding:8px 10px;
+      font-size:12px;
+      overflow:auto;
+      max-height:30vh;
+    }
+    #preview-box pre{margin:0;white-space:pre-wrap;word-break:break-word;}
+
+    .mini-tip{
+      font-size:12px;color:#8b949e;line-height:1.4;margin-top:8px;
+    }
+    code{background:#0d1117;border:1px solid #30363d;padding:1px 6px;border-radius:6px;color:#c9d1d9;}
+
+    @media (max-width: 540px){
+      .row{gap:6px;}
+      input{min-width: 100%;}
+      #load-btn,#clear-btn{width:100%;}
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
 </head>
 
 <body>
-<div class="container">
-  <h2>🚀 GitMortem Explorer</h2>
-  <p>Upper panel = AI ke liye folder-wise tree with links, Neeche = file / folder code preview.</p>
+  <div class="container">
+    <h2>🚀 GitMortem Explorer</h2>
+    <p>Upper = AI-friendly tree with links • Bottom = file/folder preview. Big files? Use chunking.</p>
 
-  <div>
-    <input type="text" id="repo-url" placeholder="https://github.com/temproj/Respread">
-    <button id="load-btn">Generate Tree</button>
-  </div>
-  <div id="status">Waiting…</div>
-
-  <!-- Tree Card -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">📂 Repo Tree (Copy for AI)</span>
-      <div class="card-actions">
-        <button class="icon-btn" id="copy-tree-btn" title="Copy whole tree for AI">📋</button>
-      </div>
+    <div class="row">
+      <input id="repo-url" type="text" placeholder="https://github.com/owner/repo" />
+      <input id="ref" type="text" placeholder="ref (optional: branch/tag/sha)" />
+      <button id="load-btn">Generate Tree</button>
+      <button id="clear-btn">Clear</button>
     </div>
-    <div class="panel-container">
+
+    <div class="mini-tip">
+      Tip: Chunk any file with <code>&amp;start=1&amp;end=400</code>, next chunk header <code>X-Next-Start</code>.
+      Add <code>&amp;ln=1</code> for line numbers, <code>&amp;md=1</code> for markdown fences.
+    </div>
+
+    <div id="status">Waiting…</div>
+
+    <!-- Tree Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📂 Repo Tree (Copy for AI)</span>
+        <div class="card-actions">
+          <button class="icon-btn" id="copy-tree-btn" title="Copy whole tree for AI">📋</button>
+        </div>
+      </div>
       <div id="tree"></div>
     </div>
-  </div>
 
-  <!-- Preview Card -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">📄 File / Folder Preview</span>
-      <div class="card-actions">
-        <button class="icon-btn" id="copy-preview-btn" title="Copy preview text">📋</button>
+    <!-- Preview Card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📄 File / Folder Preview</span>
+        <div class="card-actions">
+          <label style="font-size:12px;color:#8b949e;display:flex;gap:6px;align-items:center;">
+            <input id="toggle-ln" type="checkbox" style="accent-color:#2ea44f;" />
+            Line #
+          </label>
+          <button class="icon-btn" id="copy-preview-btn" title="Copy preview text">📋</button>
+          <button class="icon-btn" id="open-preview-btn" title="Open current API link in new tab">🔗</button>
+          <button class="icon-btn merge" id="next-chunk-btn" title="Load next chunk">➕</button>
+          <button class="icon-btn merge" id="all-chunks-btn" title="Load ALL chunks (may be big)">⇪</button>
+        </div>
       </div>
+      <div id="preview-box">Select a file from tree above…</div>
     </div>
-    <div id="preview-box">Select a file from tree above…</div>
   </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-<script src="app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
