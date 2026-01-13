@@ -26,7 +26,7 @@
       background:#161b22;
       color:#fff;
       font-size:14px;
-      min-width: 220px;
+      min-width:220px;
     }
     button{
       padding:8px 14px;
@@ -72,7 +72,6 @@
 
     #status{font-size:12px;color:#8b949e;margin-top:6px;}
 
-    /* Tree area */
     #tree{max-height:70vh;overflow:auto;}
 
     .folder-panel{
@@ -87,7 +86,6 @@
     .file-link{color:#58a6ff;cursor:pointer;}
     .file-link:hover{text-decoration:underline;}
 
-    /* Preview */
     #preview-box{
       min-height:120px;
       background:#161b22;
@@ -103,11 +101,17 @@
     .mini-tip{
       font-size:12px;color:#8b949e;line-height:1.4;margin-top:8px;
     }
-    code{background:#0d1117;border:1px solid #30363d;padding:1px 6px;border-radius:6px;color:#c9d1d9;}
+    code{
+      background:#0d1117;
+      border:1px solid #30363d;
+      padding:1px 6px;
+      border-radius:6px;
+      color:#c9d1d9;
+    }
 
     @media (max-width: 540px){
       .row{gap:6px;}
-      input{min-width: 100%;}
+      input{min-width:100%;}
       #load-btn,#clear-btn{width:100%;}
     }
   </style>
@@ -121,7 +125,7 @@
     <p>Upper = AI-friendly tree with links • Bottom = file/folder preview. Big files? Use chunking.</p>
 
     <div class="row">
-      <input id="repo-url" type="text" placeholder="https://github.com/owner/repo" />
+      <input id="repo-url" type="text" placeholder="https://github.com/owner/repo (or owner/repo)" />
       <input id="ref" type="text" placeholder="ref (optional: branch/tag/sha)" />
       <button id="load-btn">Generate Tree</button>
       <button id="clear-btn">Clear</button>
@@ -129,7 +133,7 @@
 
     <div class="mini-tip">
       Tip: Chunk any file with <code>&amp;start=1&amp;end=400</code>, next chunk header <code>X-Next-Start</code>.
-      Add <code>&amp;ln=1</code> for line numbers, <code>&amp;md=1</code> for markdown fences.
+      Add <code>&amp;ln=1</code> for line numbers, <code>&amp;md=1</code> for code fences.
     </div>
 
     <div id="status">Waiting…</div>
@@ -139,7 +143,8 @@
       <div class="card-header">
         <span class="card-title">📂 Repo Tree (Copy for AI)</span>
         <div class="card-actions">
-          <button class="icon-btn" id="copy-tree-btn" title="Copy whole tree for AI">📋</button>
+          <button class="icon-btn" id="copy-tree-btn" title="Copy whole tree">📋</button>
+          <button class="icon-btn" id="copy-ai-btn" title="Copy strict AI rules + pinned commit + tree">🧠</button>
         </div>
       </div>
       <div id="tree"></div>
@@ -156,8 +161,8 @@
           </label>
           <button class="icon-btn" id="copy-preview-btn" title="Copy preview text">📋</button>
           <button class="icon-btn" id="open-preview-btn" title="Open current API link in new tab">🔗</button>
-          <button class="icon-btn merge" id="next-chunk-btn" title="Load next chunk">➕</button>
-          <button class="icon-btn merge" id="all-chunks-btn" title="Load ALL chunks (may be big)">⇪</button>
+          <button class="icon-btn merge" id="next-chunk-btn" title="Load next chunk / next bundle page">➕</button>
+          <button class="icon-btn merge" id="all-chunks-btn" title="Load ALL chunks/pages (may be big)">⇪</button>
         </div>
       </div>
       <div id="preview-box">Select a file from tree above…</div>
