@@ -1,6 +1,7 @@
 // File: public/app.js
 // GitMortem Explorer UI (Accuracy Pack + Option A)
 // Adds 🧠 "Copy AI Prompt" that copies strict anti-hallucination rules + pinned commit + tree.
+// Fixes UNKNOWN_COMMIT by extracting commit reliably (tree tip + currentProof fallback).
 
 const repoInput = document.getElementById("repo-url");
 const refInput = document.getElementById("ref");
@@ -27,7 +28,7 @@ let nextStart = -1;        // for get-code chunking
 let nextCursor = -1;       // for bundle paging
 let previewIsBundle = false;
 
-let currentProof = null;
+let currentProof = null;   // {commitSha, source, fullSha, bodySha, ...}
 
 function escapeHtml(txt) {
   return String(txt).replace(/[&<>"']/g, (c) => ({
@@ -118,16 +119,35 @@ function extractProofHeaders(res, mode) {
   return proof;
 }
 
-// ------- Option A: Build strict AI instruction + tree -------
-function getPinnedCommitFromTree() {
-  // Explore tip contains a 40-char sha; take first match
+// ------- Option A: Strict AI prompt + pinned commit + tree -------
+
+// Strong commit extraction:
+// 1) If you've opened any file, currentProof.commitSha is perfect.
+// 2) Else parse from tree tip lines.
+function getPinnedCommit() {
+  if (currentProof && currentProof.commitSha && /^[0-9a-f]{40}$/i.test(currentProof.commitSha)) {
+    return currentProof.commitSha;
+  }
+
   const text = treeBox?.innerText || "";
-  const m = text.match(/[0-9a-f]{40}/i);
-  return m ? m[0] : "UNKNOWN_COMMIT";
+
+  // Most reliable: "commit-pinned:" line in tip
+  const m1 = text.match(/commit-pinned:\s*([0-9a-f]{40})/i);
+  if (m1 && m1[1]) return m1[1];
+
+  // Also appears as "Commit: <sha>"
+  const m2 = text.match(/Commit:\s*([0-9a-f]{40})/i);
+  if (m2 && m2[1]) return m2[1];
+
+  // Fallback: any sha
+  const m3 = text.match(/[0-9a-f]{40}/i);
+  if (m3) return m3[0];
+
+  return "UNKNOWN_COMMIT";
 }
 
 function buildStrictAiInstructionBlock() {
-  const commit = getPinnedCommitFromTree();
+  const commit = getPinnedCommit();
   return (
 `STRICT RULES (GitMortem):
 1) Only use what matches X-Commit-SHA and X-Full-SHA256 shown in the PROOF block.
@@ -142,6 +162,10 @@ Pinned Commit (proof anchor): ${commit}
 }
 
 copyAiBtn?.addEventListener("click", () => {
+  if (!treeBox || !treeBox.innerText.trim()) {
+    setStatus("❌ Tree not loaded yet. Click Generate Tree first.");
+    return;
+  }
   const payload = buildStrictAiInstructionBlock() + (treeBox?.innerText || "");
   navigator.clipboard?.writeText(payload).catch(() => {});
   setStatus("✅ Copied strict AI rules + pinned commit + tree.");
@@ -260,9 +284,8 @@ openPreviewBtn?.addEventListener("click", () => {
 
 toggleLn?.addEventListener("change", () => {
   if (!currentBaseUrl) return;
-
-  if (previewIsBundle) loadBundlePage(currentBaseUrl, currentLabel, false, true);
-  else loadFileFirstChunk(currentBaseUrl, currentLabel, true);
+  if (previewIsBundle) loadBundlePage(currentBaseUrl, currentLabel, false);
+  else loadFileFirstChunk(currentBaseUrl, currentLabel);
 });
 
 nextChunkBtn?.addEventListener("click", async () => {
@@ -438,4 +461,4 @@ async function loadBundlePage(bundleUrl, label, append = false) {
 
   setStatus((nextCursor === "-1" || nextCursor === -1) ? "✅ Bundle complete." : "✅ Bundle page loaded. Use ➕ / ⇪ for more.");
   return (nextCursor === "-1" || nextCursor === -1);
-      }
+            }
