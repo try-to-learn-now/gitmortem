@@ -43,7 +43,11 @@ export async function onRequest(context) {
   // Chunk params (line-based)
   const start = Math.max(safeInt(url.searchParams.get("start"), 1), 1); // 1-based
   const endRaw = Math.max(safeInt(url.searchParams.get("end"), 0), 0);   // 0=full
-  const wantLineNumbers = url.searchParams.get("ln") === "1";
+
+  // ✅ FIX #1: default line numbers ON (unless ln=0)
+  const wantLineNumbers = url.searchParams.get("ln") !== "0";
+
+  // Markdown fences optional (still OFF by default unless md=1)
   const wantMarkdown = url.searchParams.get("md") === "1";
 
   // Resolve ref→commit SHA (pins content)
@@ -72,7 +76,6 @@ export async function onRequest(context) {
   // 2) Fetch raw content
   let rawText = "";
   if (downloadUrl) {
-    // Use download_url (already pinned by ref in metadata response)
     const r = await fetch(downloadUrl, {
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -88,7 +91,6 @@ export async function onRequest(context) {
     }
     rawText = await r.text();
   } else {
-    // fallback: contents raw accept
     const rawUrl = new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
     rawUrl.searchParams.set("ref", commitSha);
     const r = await fetch(rawUrl.toString(), {
@@ -182,7 +184,10 @@ export async function onRequest(context) {
 
       "X-Full-SHA256": fullSha,
       "X-Body-SHA256": bodySha,
-      "X-Chunk-SHA256": bodySha, // same as body for chunked reads
+      "X-Chunk-SHA256": bodySha,
+
+      // Helpful: shows defaults in effect
+      "X-LineNumbers": wantLineNumbers ? "1" : "0",
     }),
   });
 }
